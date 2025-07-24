@@ -1,0 +1,30 @@
+# Ignorar arquivos do Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Ignorar ambientes virtuais
+venv/
+env/
+.env
+
+# Ignorar arquivos de IDE (exemplo para o VSCode)
+.vscode/
+
+# Ignorar arquivos de configuração do sistema
+.DS_Store  # No macOS
+Thumbs.db   # No Windows
+
+# Ignorar arquivos de log (caso existam)
+*.log
+
+# Ignorar arquivos de banco de dados locais (exemplo, se você estiver usando SQLite)
+*.sqlite
+*.db
+
+# Ignorar arquivos de cache
+*.cache
+
+# Ignorar a pasta de uploads (caso você tenha uma)
+uploads/
