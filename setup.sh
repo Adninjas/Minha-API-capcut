@@ -1,7 +1,6 @@
-#!/bin/bash
+# Atualizar o sistema e instalar dependências necessárias
+apt-get update
+apt-get install -y chromium-browser
 
-# Instalar as dependências do Python listadas no requirements.txt
+# Instalar dependências do Python
 pip install -r requirements.txt
-
-# Instalar o WebDriver Manager para Selenium
-pip install webdriver-manager

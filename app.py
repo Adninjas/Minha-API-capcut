@@ -26,7 +26,7 @@ URLS_CONTAS = {
 def home():
     return "API está funcionando corretamente!"
 
-# 🔍 Acessa a caixa de e-mail usando Selenium
+# Acessa a caixa de e-mail usando Selenium
 def acessar_email_com_selenium(email_cliente):
     if email_cliente not in URLS_CONTAS:
         return None
@@ -60,14 +60,14 @@ def acessar_email_com_selenium(email_cliente):
     finally:
         driver.quit()  # Fechar o driver após o uso
 
-# 🧠 Extrai código de 6 dígitos do e-mail
+# Extrai código de 6 dígitos do e-mail
 def extrair_codigo(corpo_email):
     match = re.search(r'\b(\d{6})\b', corpo_email)
     if match:
         return match.group(1)
     return None
 
-# 🔐 Gera senha nova sequencial
+# Gera senha nova sequencial
 def gerar_senha():
     caminho = "contador_senhas.txt"
     ultimo = 0
@@ -79,7 +79,7 @@ def gerar_senha():
         f.write(str(novo))
     return f"capcut{novo}"
 
-# 🔁 Rota da API
+# Rota da API
 @app.route("/recuperar-senha", methods=["POST"])
 def recuperar_senha():
     dados = request.get_json()
@@ -102,6 +102,6 @@ def recuperar_senha():
         "nova_senha": nova_senha
     }), 200
 
-# 🚀 Inicialização do servidor Flask
+# Inicialização do servidor Flask
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
