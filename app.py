@@ -1,16 +1,12 @@
 import os
 import re
-import json
-import asyncio
-import subprocess
+import time
 from flask import Flask, request, jsonify
-from datetime import datetime
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from webdriver_manager.chrome import ChromeDriverManager  # Usando WebDriver Manager
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
-import time
 
 app = Flask(__name__)
 
@@ -25,15 +21,6 @@ URLS_CONTAS = {
     "cap2@universidadefederal.edu.pl": "https://meuedu.email/mailbox/f8b0de4a-3ab9-46ae-a91c-2aac322e8b02"
 }
 
-# 🔧 Executa instalação dos navegadores do Playwright em tempo de execução
-async def instalar_playwright_runtime():
-    try:
-        print("Instalando navegadores Playwright em tempo de execução...")
-        subprocess.run(["playwright", "install"], check=True)
-        print("Browsers do Playwright instalados com sucesso.")
-    except Exception as e:
-        print("Falha ao instalar navegadores:", e)
-
 # 🔍 Acessa a caixa de e-mail usando Selenium
 def acessar_email_com_selenium(email_cliente):
     if email_cliente not in URLS_CONTAS:
@@ -44,7 +31,7 @@ def acessar_email_com_selenium(email_cliente):
     # Configuração do WebDriver com WebDriver Manager
     options = webdriver.ChromeOptions()
     options.add_argument('--headless')  # Executar sem abrir a janela do navegador
-    driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)  # Usando WebDriver Manager
+    driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
 
     try:
         # Acessar painel e realizar login
@@ -86,13 +73,6 @@ def gerar_senha():
     with open(caminho, "w") as f:
         f.write(str(novo))
     return f"capcut{novo}"
-
-# 🔧 Executa instalação dos navegadores Playwright em tempo de execução
-@app.before_first_request
-def preparar_browsers():
-    print("Preparando Playwright, se necessário...")
-    # Chama a função de instalação de navegador quando for realmente necessário
-    asyncio.run(instalar_playwright_runtime())
 
 # 🔁 Rota da API
 @app.route("/recuperar-senha", methods=["POST"])
