@@ -1,0 +1,7 @@
+services:
+  - type: web
+    name: minha-api-capcut
+    env: python
+    buildCommand: "bash setup.sh && pip install -r requirements.txt"
+    startCommand: "python app.py"
+    pythonVersion: 3.11.9
