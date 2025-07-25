@@ -1,75 +1,65 @@
 import os
-from selenium import webdriver
-from selenium.webdriver.common.by import By
-from selenium.webdriver.common.keys import Keys
-from selenium.webdriver.chrome.service import Service
-from selenium.webdriver.chrome.options import Options
-import time
 import re
+import asyncio
 from flask import Flask, request, jsonify
+from datetime import datetime
+from playwright.async_api import async_playwright
 
 app = Flask(__name__)
 
-# Definir as credenciais para login no painel
+# Configurações
 PAINEL_URL = "https://meuedu.email/dashboard"
 USUARIO = "rogerfsferreira@gmail.com"
 SENHA = "as395198"
 
-# URLs específicas para cada conta
 URLS_CONTAS = {
     "cap2@universidadefederal.edu.pl": "https://meuedu.email/mailbox/f8b0de4a-3ab9-46ae-a91c-2aac322e8b02",
     "capcut@universidadefederal.edu.pl": "https://meuedu.email/mailbox/e016b008-52e2-4829-a64f-2bb21473ae3f"
 }
 
-# Inicializa o Selenium com Chrome Headless
-def inicializar_driver():
-    chrome_options = Options()
-    chrome_options.add_argument("--headless")
-    chrome_options.add_argument("--no-sandbox")
-    chrome_options.add_argument("--disable-dev-shm-usage")
-    driver_path = "/usr/local/bin/chromedriver"  # Caminho corrigido no Render
-    return webdriver.Chrome(service=Service(driver_path), options=chrome_options)
-
-# Extrai o código de verificação do corpo do e-mail
-def extrair_codigo(corpo_email):
-    match = re.search(r'\b\d{6}\b', corpo_email)
-    if match:
-        return match.group(0)
-    return None
-
-# Faz login no painel e busca o código na caixa de e-mail
-def acessar_email_capcut(email_cliente):
+# Função principal que usa Playwright para buscar o código
+async def acessar_email_com_playwright(email_cliente):
     if email_cliente not in URLS_CONTAS:
         return None
 
-    url_conta = URLS_CONTAS[email_cliente]
-    driver = inicializar_driver()
+    url_destino = URLS_CONTAS[email_cliente]
 
-    try:
-        driver.get(PAINEL_URL)
-        time.sleep(3)
+    async with async_playwright() as p:
+        browser = await p.chromium.launch(headless=True)
+        context = await browser.new_context()
+        page = await context.new_page()
 
-        driver.find_element(By.ID, "id_usuario").send_keys(USUARIO)
-        senha_input = driver.find_element(By.ID, "id_senha")
-        senha_input.send_keys(SENHA)
-        senha_input.send_keys(Keys.RETURN)
-        time.sleep(5)
+        try:
+            # Login no painel
+            await page.goto(PAINEL_URL)
+            await page.fill('input#id_usuario', USUARIO)
+            await page.fill('input#id_senha', SENHA)
+            await page.keyboard.press("Enter")
+            await page.wait_for_timeout(4000)
 
-        driver.get(url_conta)
-        time.sleep(5)
+            # Acessar a página da conta de e-mail
+            await page.goto(url_destino)
+            await page.wait_for_timeout(4000)
 
-        corpo_email = driver.find_element(By.XPATH, "//div[@class='email-body']").text
+            # Buscar o corpo do e-mail
+            corpo = await page.inner_text("div.prose.max-w-none")
+            codigo = extrair_codigo(corpo)
+            await browser.close()
+            return codigo
 
-        print(driver.page_source)  # DEBUG: imprime o HTML da página
-        driver.quit()
+        except Exception as e:
+            await browser.close()
+            print("Erro Playwright:", e)
+            return None
 
-        return extrair_codigo(corpo_email)
-    except Exception as e:
-        print(f"Erro: {e}")
-        driver.quit()
-        return None
+# Extrai o código do corpo do e-mail
+def extrair_codigo(texto):
+    match = re.search(r'(\d{6})', texto)
+    if match:
+        return match.group(1)
+    return None
 
-# Gera senha nova com base em contador local
+# Gera uma nova senha sequencial
 def gerar_senha():
     contador_path = "contador_senhas.txt"
     ultimo = 0
@@ -84,21 +74,23 @@ def gerar_senha():
 @app.route('/recuperar-senha', methods=['POST'])
 def recuperar_senha():
     dados = request.get_json()
-    email_cliente = dados.get('email')
+    email = dados.get("email")
 
-    if not email_cliente:
+    if not email:
         return jsonify({"status": "erro", "mensagem": "E-mail não informado."}), 400
 
-    codigo = acessar_email_capcut(email_cliente)
+    # Chama o Playwright de forma assíncrona
+    codigo = asyncio.run(acessar_email_com_playwright(email))
 
     if not codigo:
         return jsonify({"status": "erro", "mensagem": "Código de verificação não encontrado."}), 400
 
     nova_senha = gerar_senha()
+
     return jsonify({
         "codigo": codigo,
         "nova_senha": nova_senha
-    })
+    }), 200
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 5000)))
