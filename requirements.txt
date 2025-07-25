@@ -1,6 +1,5 @@
 Flask==2.1.2
-playwright==1.29.0
 werkzeug==2.0.3
 selenium==4.15.2
 gunicorn
-
+webdriver-manager==3.8.5
