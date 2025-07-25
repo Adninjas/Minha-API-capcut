@@ -20,21 +20,14 @@ URLS_CONTAS = {
     "cap2@universidadefederal.edu.pl": "https://meuedu.email/mailbox/f8b0de4a-3ab9-46ae-a91c-2aac322e8b02"
 }
 
-# 🔧 Instala navegadores no runtime usando subprocess
-async def instalar_browsers():
-    process = await asyncio.create_subprocess_exec(
-        "npx", "playwright", "install",
-        stdout=asyncio.subprocess.PIPE,
-        stderr=asyncio.subprocess.PIPE
-    )
-    stdout, stderr = await process.communicate()
-    if process.returncode != 0:
-        print("Erro ao instalar navegadores:", stderr.decode())
-    else:
-        print("Navegadores instalados com sucesso:", stdout.decode())
-
-# Roda instalação assim que o app carregar
-asyncio.run(instalar_browsers())
+# 🔧 Executa instalação dos navegadores na primeira requisição
+@app.before_first_request
+def preparar_browsers():
+    try:
+        subprocess.run(["playwright", "install"], check=True)
+        print("Browsers do Playwright instalados com sucesso.")
+    except Exception as e:
+        print("Falha ao instalar navegadores:", e)
 
 # 🔍 Acessa a caixa de e-mail usando Playwright
 async def acessar_email_com_playwright(email_cliente):
