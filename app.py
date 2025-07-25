@@ -5,7 +5,12 @@ import asyncio
 import subprocess
 from flask import Flask, request, jsonify
 from datetime import datetime
-from playwright.async_api import async_playwright
+from selenium import webdriver
+from selenium.webdriver.chrome.service import Service
+from webdriver_manager.chrome import ChromeDriverManager  # Usando WebDriver Manager
+from selenium.webdriver.common.by import By
+from selenium.webdriver.common.keys import Keys
+import time
 
 app = Flask(__name__)
 
@@ -20,47 +25,48 @@ URLS_CONTAS = {
     "cap2@universidadefederal.edu.pl": "https://meuedu.email/mailbox/f8b0de4a-3ab9-46ae-a91c-2aac322e8b02"
 }
 
-# 🔧 Executa instalação dos navegadores na primeira requisição
-@app.before_first_request
-def preparar_browsers():
+# 🔧 Executa instalação dos navegadores do Playwright em tempo de execução
+async def instalar_playwright_runtime():
     try:
+        print("Instalando navegadores Playwright em tempo de execução...")
         subprocess.run(["playwright", "install"], check=True)
         print("Browsers do Playwright instalados com sucesso.")
     except Exception as e:
         print("Falha ao instalar navegadores:", e)
 
-# 🔍 Acessa a caixa de e-mail usando Playwright
-async def acessar_email_com_playwright(email_cliente):
+# 🔍 Acessa a caixa de e-mail usando Selenium
+def acessar_email_com_selenium(email_cliente):
     if email_cliente not in URLS_CONTAS:
         return None
 
     url_caixa = URLS_CONTAS[email_cliente]
 
-    async with async_playwright() as p:
-        browser = await p.chromium.launch(headless=True)
-        context = await browser.new_context()
-        page = await context.new_page()
+    # Configuração do WebDriver com WebDriver Manager
+    options = webdriver.ChromeOptions()
+    options.add_argument('--headless')  # Executar sem abrir a janela do navegador
+    driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)  # Usando WebDriver Manager
 
-        # Login
-        await page.goto(PAINEL_URL)
-        await page.fill('input[id="id_usuario"]', USUARIO)
-        await page.fill('input[id="id_senha"]', SENHA)
-        await page.keyboard.press("Enter")
-        await page.wait_for_timeout(4000)
+    try:
+        # Acessar painel e realizar login
+        driver.get(PAINEL_URL)
+        driver.find_element(By.ID, "id_usuario").send_keys(USUARIO)
+        driver.find_element(By.ID, "id_senha").send_keys(SENHA)
+        driver.find_element(By.ID, "id_senha").send_keys(Keys.RETURN)
+        time.sleep(4)  # Aguardar login
 
-        # Vai direto para a caixa do e-mail informado
-        await page.goto(url_caixa)
-        await page.wait_for_timeout(4000)
+        # Acessar o e-mail desejado
+        driver.get(url_caixa)
+        time.sleep(4)  # Aguardar carregamento
 
-        try:
-            corpo = await page.inner_text("//div[@class='email-body']")
-            codigo = extrair_codigo(corpo)
-            await browser.close()
-            return codigo
-        except Exception as e:
-            await browser.close()
-            print("Erro ao extrair código:", e)
-            return None
+        # Extrair o corpo do e-mail
+        corpo_email = driver.find_element(By.XPATH, "//div[@class='email-body']").text
+        codigo = extrair_codigo(corpo_email)
+        return codigo
+    except Exception as e:
+        print("Erro ao acessar o painel:", e)
+        return None
+    finally:
+        driver.quit()  # Fechar o driver após o uso
 
 # 🧠 Extrai código de 6 dígitos do e-mail
 def extrair_codigo(corpo_email):
@@ -81,6 +87,13 @@ def gerar_senha():
         f.write(str(novo))
     return f"capcut{novo}"
 
+# 🔧 Executa instalação dos navegadores Playwright em tempo de execução
+@app.before_first_request
+def preparar_browsers():
+    print("Preparando Playwright, se necessário...")
+    # Chama a função de instalação de navegador quando for realmente necessário
+    asyncio.run(instalar_playwright_runtime())
+
 # 🔁 Rota da API
 @app.route("/recuperar-senha", methods=["POST"])
 def recuperar_senha():
@@ -93,7 +106,7 @@ def recuperar_senha():
     if email not in URLS_CONTAS:
         return jsonify({"status": "erro", "mensagem": "E-mail não reconhecido na configuração do servidor."}), 400
 
-    codigo = asyncio.run(acessar_email_com_playwright(email))
+    codigo = acessar_email_com_selenium(email)
     if not codigo:
         return jsonify({"status": "erro", "mensagem": "Código de verificação não encontrado."}), 400
 
