@@ -1,5 +1,4 @@
 #!/bin/bash
 
-# Instala os navegadores e dependências via Playwright (sem apt-get)
+# Instala o Playwright (sem tentar instalar os browsers no build)
 npm install playwright
-npx playwright install --with-deps
